@@ -2,7 +2,6 @@ package jwt
 
 import (
 	"errors"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"strings"
 	//"encoding/json"
@@ -35,7 +34,6 @@ func GenToken(StudentId string) (string, error) {
 // ParseToken 解析JWT
 func ParseToken(tokenString string) (*MyClaims, error) {
 	// 解析token
-	fmt.Println("解析Token")
 	token, err := jwt.ParseWithClaims(tokenString, &MyClaims{}, func(token *jwt.Token) (i interface{}, err error) {
 		return MySecret, nil
 	})

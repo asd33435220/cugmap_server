@@ -1,12 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"ginWeb/jwt"
 	db "ginWeb/utils"
 	"github.com/gin-gonic/gin"
+	"html"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type ErrorJson struct {
@@ -14,12 +15,7 @@ type ErrorJson struct {
 	Code    int    `json:"code"`
 }
 
-func addUser() {
-
-}
-
 func main() {
-	//fmt.Println(jwt.GenToken("朱宇宸"))
 	r := gin.Default()
 	r.LoadHTMLFiles()
 	r.Use(CROSHandler()) //跨域中间件
@@ -36,11 +32,13 @@ func main() {
 			"code":         1,
 			"student_id":   StudentId,
 			"student_name": newUser.Username,
+			"signature":    newUser.Signature,
+			"position":     newUser.Position,
 			"with_token":   ok,
 		})
 	})
 	userRoute := r.Group("/user")
-
+	messageRoute := r.Group("/message")
 	userRoute.GET("/query", func(context *gin.Context) {
 
 	})
@@ -55,7 +53,7 @@ func main() {
 			return
 		}
 		newUser.StudentId = studentId
-		id := newUser.QueryUser()
+		id := newUser.QueryUserId()
 		if strings.TrimSpace(id) != "" {
 			context.JSON(200, map[string]interface{}{
 				"code":    -1,
@@ -192,8 +190,60 @@ func main() {
 		//	"code":   200,
 		//})
 	})
-	userRoute.GET("/update/position", jwt.JWTAuthMiddleware(), func(context *gin.Context) {
+	userRoute.GET("/position", jwt.JWTAuthMiddleware(), func(context *gin.Context) {
 		StudentId, ok := context.Get("StudentId")
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "用户状态有误，请重新登陆",
+			})
+			return
+		}
+		id, ok := StudentId.(string)
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "用户状态有误，请重新登陆",
+			})
+			return
+		}
+		newUser := &db.User{
+			StudentId: id,
+		}
+		newUser.QueryUserPosition()
+		if newUser.Position == "" {
+			context.JSON(200, gin.H{
+				"code":    -2,
+				"message": "你还没有登记自己的位置信息哦,先去更新一下吧",
+			})
+			return
+		}
+		userList, err := db.GetAllUserInfo(newUser.Position)
+		if err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "查询位置信息失败",
+			})
+			return
+		}
+		context.JSON(200, gin.H{
+			"code":          1,
+			"message":       "success",
+			"user_list":     userList,
+			"user_position": newUser.Position,
+		})
+		return
+	})
+	userRoute.GET("/update/info", jwt.JWTAuthMiddleware(), func(context *gin.Context) {
+		StudentId, ok := context.Get("StudentId")
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "用户状态有误，请重新登陆",
+			})
+			return
+		}
+		id, ok := StudentId.(string)
 		if !ok {
 			context.JSON(200, gin.H{
 				"code":    -1,
@@ -209,11 +259,135 @@ func main() {
 			})
 			return
 		}
-		latitude := context.Query("longitude")
+		latitude := context.Query("latitude")
 		if strings.TrimSpace(latitude) == "" {
 			context.JSON(200, gin.H{
 				"code":    -1,
 				"message": "纬度不存在",
+			})
+			return
+		}
+		signature := context.Query("signature")
+		if len(signature) > 50 {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "你的个性签名太长啦，换个短一点的吧",
+			})
+		}
+		newUser := &db.User{
+			StudentId: id,
+			Position:  longitude + ";" + latitude,
+			Signature: signature,
+		}
+		err := newUser.UpdateUserInfo()
+		if err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": err.Error(),
+			})
+		}
+		signature = html.EscapeString(signature)
+		context.JSON(200, gin.H{
+			"code":      1,
+			"message":   "用户信息更新成功",
+			"signature": signature,
+		})
+	})
+	userRoute.GET("/posinfo", func(context *gin.Context) {
+		position := context.Query("position")
+		if strings.TrimSpace(position) == "" {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "位置错误,请稍后再试!",
+			})
+			return
+		}
+		student_id := context.Query("student_id")
+		if strings.TrimSpace(student_id) == "" {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "账户ID错误,请稍后再试!",
+			})
+			return
+		}
+		newUser := &db.User{
+			StudentId: student_id,
+		}
+		newUser.QueryAllInfo()
+		userWithD := db.Getdistance(position, newUser)
+		context.JSON(200, gin.H{
+			"code":     1,
+			"message":  "success",
+			"userinfo": userWithD,
+		})
+		return
+	})
+	messageRoute.POST("/leave", func(context *gin.Context) {
+		receiverId, ok := context.GetPostForm("receiver_id")
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "服务器错误,请稍后再试",
+			})
+			return
+		}
+		message, ok := context.GetPostForm("message")
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "消息不能为空喔",
+			})
+			return
+
+		}
+		senderId, ok := context.GetPostForm("sender_id")
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "服务器错误,请稍后再试",
+			})
+			return
+		}
+		if strings.TrimSpace(message) == "" {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "消息不能为空喔",
+			})
+			return
+		}
+		if receiverId == "" || senderId == "" {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "服务器错误,请稍后再试",
+			})
+			return
+		}
+		messageTime := time.Now().Format("2006-01-02 15:04:05")
+		newMessage := &db.MessageType{
+			SenderId:   senderId,
+			ReceiverId: receiverId,
+			SendTime:   messageTime,
+			Message:    message,
+		}
+		err := newMessage.AddMessage()
+		if err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "数据库错误,请稍后再试",
+			})
+			return
+		}
+		context.JSON(200, gin.H{
+			"code":    1,
+			"message": "留言成功，请耐心等待回复哦",
+		})
+	})
+	messageRoute.GET("/mymessage", jwt.JWTAuthMiddleware(), func(context *gin.Context) {
+		StudentId, ok := context.Get("StudentId")
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "用户状态有误，请重新登陆",
 			})
 			return
 		}
@@ -225,23 +399,23 @@ func main() {
 			})
 			return
 		}
-		newUser := &db.User{
-			StudentId: id,
-			Position:  longitude + ";" + latitude,
+		MyMessageType := &db.MessageType{
+			ReceiverId: id,
 		}
-		err := newUser.UpdateUserPosition()
+		MessageList, err := MyMessageType.GetMyMessage()
 		if err != nil {
 			context.JSON(200, gin.H{
 				"code":    -1,
-				"message": err.Error(),
+				"message": "查询信息有误，请稍后再试",
 			})
+			return
 		}
 		context.JSON(200, gin.H{
-			"code":    1,
-			"message": "用户位置更新成功",
+			"code":         1,
+			"message":      "查询成功",
+			"message_list": MessageList,
 		})
 	})
-
 	r.Run(":9999")
 }
 

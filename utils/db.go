@@ -14,15 +14,14 @@ var err error
 const (
 	insertUserSrt       = "insert into cug_map_users_tpl(student_id,username,password) values(?,?,?);"
 	queryStudentIdSrt   = "select student_id from cug_map_users_tpl where student_id = ?;"
-	queryStudentNameSrt   = "select username from cug_map_users_tpl where student_id = ?;"
+	queryStudentNameSrt = "select username from cug_map_users_tpl where student_id = ?;"
 	queryStudentSrt     = "select username,password from cug_map_users_tpl where student_id = ?;"
 	queryStudentInfoSrt = "select student_id,username,password,position,signature from cug_map_users_tpl where student_id = ?;"
 	updateUserPosition  = "update cug_map_users_tpl set position = ? where student_id = ?;"
 	updateUserSignature = "update cug_map_users_tpl set signature = ? where student_id = ?;"
-	queryUserPosition = "select position from cug_map_users_tpl where student_id = ?;"
-	queryAllUserInfo  = "select student_id,username,position,signature from cug_map_users_tpl;"
-	queryAllInfo  = "select student_id,username,position,signature from cug_map_users_tpl where student_id = ?;"
-
+	queryUserPosition   = "select position from cug_map_users_tpl where student_id = ?;"
+	queryAllUserInfo    = "select student_id,username,position,signature from cug_map_users_tpl;"
+	queryAllInfo        = "select student_id,username,position,signature from cug_map_users_tpl where student_id = ?;"
 )
 
 type User struct {
@@ -186,7 +185,7 @@ func (newUser *User) QueryUserPosition() {
 	result.Scan(&newUser.Position)
 	return
 }
-func (newUser *User)QueryUserName()(name string){
+func (newUser *User) QueryUserName() (name string) {
 	stmt, err := Db.Prepare(queryStudentNameSrt)
 	if err != nil {
 		log.Fatal(err)
@@ -197,14 +196,14 @@ func (newUser *User)QueryUserName()(name string){
 	result.Scan(&name)
 	return
 }
-func (newUser *User)QueryAllInfo()(err error){
-	stmt,err := Db.Prepare(queryAllInfo)
+func (newUser *User) QueryAllInfo() (err error) {
+	stmt, err := Db.Prepare(queryAllInfo)
 	defer stmt.Close()
 	if err != nil {
 		return
 	}
 	rows := stmt.QueryRow(newUser.StudentId)
-	err = rows.Scan(&newUser.StudentId,&newUser.Username,&newUser.Position,&newUser.Signature)
+	err = rows.Scan(&newUser.StudentId, &newUser.Username, &newUser.Position, &newUser.Signature)
 	return
 }
 func GetAllUserInfo(position string) (userList []*UserWithDistance, err error) {
@@ -221,7 +220,7 @@ func GetAllUserInfo(position string) (userList []*UserWithDistance, err error) {
 	defer rows.Close()
 	for rows.Next() {
 		user := User{}
-		rows.Scan(&user.StudentId, &user.Username, &user.Position,&user.Signature)
+		rows.Scan(&user.StudentId, &user.Username, &user.Position, &user.Signature)
 		if strings.TrimSpace(user.Position) != "" {
 			userWithD := Getdistance(position, &user)
 			userList = append(userList, userWithD)
