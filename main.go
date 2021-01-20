@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"ginWeb/jwt"
 	db "ginWeb/utils"
 	"github.com/gin-gonic/gin"
 	"html"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -33,7 +35,8 @@ func main() {
 			"student_id":   StudentId,
 			"student_name": newUser.Username,
 			"signature":    newUser.Signature,
-			"position":     newUser.Position,
+			"longitude":    newUser.Longitude,
+			"latitude":     newUser.Latitude,
 			"with_token":   ok,
 		})
 	})
@@ -211,14 +214,15 @@ func main() {
 			StudentId: id,
 		}
 		newUser.QueryUserPosition()
-		if newUser.Position == "" {
+		if newUser.Longitude == 0 && newUser.Latitude == 0 {
 			context.JSON(200, gin.H{
 				"code":    -2,
 				"message": "你还没有登记自己的位置信息哦,先去更新一下吧",
 			})
 			return
 		}
-		userList, err := db.GetAllUserInfo(newUser.Position)
+		userList, err := db.GetAllUserInfo(newUser.Longitude,newUser.Latitude,newUser.StudentId)
+		fmt.Println("userList",userList)
 		if err != nil {
 			context.JSON(200, gin.H{
 				"code":    -1,
@@ -227,10 +231,11 @@ func main() {
 			return
 		}
 		context.JSON(200, gin.H{
-			"code":          1,
-			"message":       "success",
-			"user_list":     userList,
-			"user_position": newUser.Position,
+			"code":      1,
+			"message":   "success",
+			"user_list": userList,
+			"user_lng":  newUser.Longitude,
+			"user_lat":  newUser.Latitude,
 		})
 		return
 	})
@@ -251,22 +256,26 @@ func main() {
 			})
 			return
 		}
-		longitude := context.Query("longitude")
-		if strings.TrimSpace(longitude) == "" {
+		longitudeStr := context.Query("longitude")
+		longitude, err := strconv.ParseFloat(longitudeStr, 64)
+		if longitude == 0 || err != nil {
 			context.JSON(200, gin.H{
 				"code":    -1,
-				"message": "经度不存在",
+				"message": "经度有误",
 			})
 			return
 		}
-		latitude := context.Query("latitude")
-		if strings.TrimSpace(latitude) == "" {
+
+		latitudeStr := context.Query("latitude")
+		latitude, err := strconv.ParseFloat(latitudeStr, 64)
+		if latitude == 0 || err != nil {
 			context.JSON(200, gin.H{
 				"code":    -1,
-				"message": "纬度不存在",
+				"message": "经度有误",
 			})
 			return
 		}
+
 		signature := context.Query("signature")
 		if len(signature) > 50 {
 			context.JSON(200, gin.H{
@@ -276,10 +285,11 @@ func main() {
 		}
 		newUser := &db.User{
 			StudentId: id,
-			Position:  longitude + ";" + latitude,
+			Longitude: longitude,
+			Latitude:  latitude,
 			Signature: signature,
 		}
-		err := newUser.UpdateUserInfo()
+		err = newUser.UpdateUserInfo()
 		if err != nil {
 			context.JSON(200, gin.H{
 				"code":    -1,
@@ -314,11 +324,11 @@ func main() {
 			StudentId: student_id,
 		}
 		newUser.QueryAllInfo()
-		userWithD := db.Getdistance(position, newUser)
+		//userList := db.Getdistance(position, newUser)
 		context.JSON(200, gin.H{
 			"code":     1,
 			"message":  "success",
-			"userinfo": userWithD,
+			"userinfo": newUser,
 		})
 		return
 	})

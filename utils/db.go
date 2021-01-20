@@ -5,7 +5,6 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
-	"strings"
 )
 
 var Db *sql.DB
@@ -16,20 +15,22 @@ const (
 	queryStudentIdSrt   = "select student_id from cug_map_users_tpl where student_id = ?;"
 	queryStudentNameSrt = "select username from cug_map_users_tpl where student_id = ?;"
 	queryStudentSrt     = "select username,password from cug_map_users_tpl where student_id = ?;"
-	queryStudentInfoSrt = "select student_id,username,password,position,signature from cug_map_users_tpl where student_id = ?;"
-	updateUserPosition  = "update cug_map_users_tpl set position = ? where student_id = ?;"
+	queryStudentInfoSrt = "select student_id,username,password,lng,lat,signature from cug_map_users_tpl where student_id = ?;"
+	updateUserPosition  = "update cug_map_users_tpl set lng = ?,lat = ? where student_id = ?;"
 	updateUserSignature = "update cug_map_users_tpl set signature = ? where student_id = ?;"
-	queryUserPosition   = "select position from cug_map_users_tpl where student_id = ?;"
-	queryAllUserInfo    = "select student_id,username,position,signature from cug_map_users_tpl;"
-	queryAllInfo        = "select student_id,username,position,signature from cug_map_users_tpl where student_id = ?;"
+	queryUserPosition   = "select lng,lat from cug_map_users_tpl where student_id = ?;"
+	countUserNumber     = "select count(student_id) from cug_map_users_tpl where lng > ? and lng < ? and lat > ? and lat < ?"
+	queryAllUserInfo    = "select student_id,username,lng,lat,signature from cug_map_users_tpl where lng > ? and lng < ? and lat > ? and lat < ?;"
+	queryAllInfo        = "select student_id,username,lng,lat,signature from cug_map_users_tpl where student_id = ?;"
 )
 
 type User struct {
-	StudentId string `form:"student_id" json:"student_id" binding:"required"`
-	Username  string `form:"username" json:"username" binding:"required"`
-	Password  string `form:"password" json:"password" binding"required"`
-	Position  string `json:"position"`
-	Signature string `json:"signature"`
+	StudentId string  `form:"student_id" json:"student_id" binding:"required"`
+	Username  string  `form:"username" json:"username" binding:"required"`
+	Password  string  `form:"password" json:"password" binding"required"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
+	Signature string  `json:"signature"`
 }
 
 func init() {
@@ -61,7 +62,11 @@ func (newUser *User) QueryUserInfo() *User {
 	}
 	defer stmt.Close()
 	result := stmt.QueryRow(newUser.StudentId)
-	result.Scan(&user.StudentId, &user.Username, &user.Password, &user.Position, &user.Signature)
+
+	err = result.Scan(&user.StudentId, &user.Username, &user.Password, &user.Longitude, &user.Latitude, &user.Signature)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 	fmt.Println(user)
 	return user
 }
@@ -124,7 +129,7 @@ func (newUser *User) UpdateUserInfo() (err error) {
 		return
 	}
 	defer stmt.Close()
-	result, err := stmt.Exec(newUser.Position, newUser.StudentId)
+	result, err := stmt.Exec(newUser.Longitude, newUser.Latitude, newUser.StudentId)
 	if err != nil {
 		tx.Rollback()
 		log.Fatal(err)
@@ -182,7 +187,7 @@ func (newUser *User) QueryUserPosition() {
 	}
 	defer stmt.Close()
 	result := stmt.QueryRow(newUser.StudentId)
-	result.Scan(&newUser.Position)
+	result.Scan(&newUser.Longitude, &newUser.Latitude)
 	return
 }
 func (newUser *User) QueryUserName() (name string) {
@@ -203,30 +208,59 @@ func (newUser *User) QueryAllInfo() (err error) {
 		return
 	}
 	rows := stmt.QueryRow(newUser.StudentId)
-	err = rows.Scan(&newUser.StudentId, &newUser.Username, &newUser.Position, &newUser.Signature)
+	err = rows.Scan(&newUser.StudentId, &newUser.Username, &newUser.Longitude, &newUser.Latitude, &newUser.Signature)
 	return
 }
-func GetAllUserInfo(position string) (userList []*UserWithDistance, err error) {
-	userList = make([]*UserWithDistance, 0)
-	stmt, err := Db.Prepare(queryAllUserInfo)
+func GetAllUserInfo(lng, lat float64, myId string) (userList []*User, err error) {
+	number := 0
+	Lrange := 10.0
+	userList = make([]*User, 0)
+	stmt2, err2 := Db.Prepare(queryAllUserInfo)
+	defer stmt2.Close()
+	if err2 != nil {
+		fmt.Println("err2", err2.Error())
+		return
+	}
+	stmt, err := Db.Prepare(countUserNumber)
 	defer stmt.Close()
 	if err != nil {
+		fmt.Println("err1", err.Error())
 		return
 	}
-	rows, err := stmt.Query()
-	if err != nil {
-		return
-	}
-	defer rows.Close()
-	for rows.Next() {
-		user := User{}
-		rows.Scan(&user.StudentId, &user.Username, &user.Position, &user.Signature)
-		if strings.TrimSpace(user.Position) != "" {
-			userWithD := Getdistance(position, &user)
-			userList = append(userList, userWithD)
-		}
+	row := stmt.QueryRow(-180, 180, -90, 90)
+	row.Scan(&number)
+	fmt.Println("number=", number)
+	for number > 50 {
+		row = stmt.QueryRow(lng-Lrange, lng+Lrange, lat-Lrange, lat+Lrange)
+		row.Scan(&number)
+		Lrange = Lrange / 1.2
 
 	}
-	userList = getTargetList(userList)
+	Lrange = Lrange * 1.2
+	var rows *sql.Rows
+	if Lrange > 9 {
+		rows, err = stmt2.Query(-180, 180, -90, 90)
+	} else {
+		rows, err = stmt2.Query(lng-Lrange, lng+Lrange, lat-Lrange, lat+Lrange)
+	}
+	if err != nil {
+		fmt.Errorf(err.Error())
+		return
+	}
+	count := 0
+	defer rows.Close()
+	for rows.Next() {
+		count++
+		if count > 50 {
+			break
+		}
+		user := User{}
+		rows.Scan(&user.StudentId, &user.Username, &user.Longitude, &user.Latitude, &user.Signature)
+		if user.Longitude != 0 && user.Latitude != 0 && user.StudentId != myId {
+			//userWithD := Getdistance(position, &user)
+			//userList = append(userList, userWithD)
+			userList = append(userList, &user)
+		}
+	}
 	return
 }

@@ -1,11 +1,11 @@
 package db
 
 import (
-	"html"
-	"math"
+	//"html"
+	//"math"
 	"math/rand"
-	"strconv"
-	"strings"
+	//"strconv"
+	//"strings"
 	"time"
 )
 
@@ -22,34 +22,35 @@ type UserWithDistance struct {
 }
 
 func Getdistance(position string, user *User) (userWithD *UserWithDistance) {
-	user2Position := user.Position
-	var str string
-	arr := strings.Split(position, ";")
-	str = arr[0]
-	user1Lng, _ := strconv.ParseFloat(str, 32)
-	str = arr[1]
-	user1Lat, _ := strconv.ParseFloat(str, 32)
-	arr = strings.Split(user2Position, ";")
-	str = arr[0]
-	user2Lng, _ := strconv.ParseFloat(str, 32)
-	str = arr[1]
-	user2Lat, _ := strconv.ParseFloat(str, 32)
-	user1Lng = user1Lng * Pi / 180
-	user1Lat = user1Lat * Pi / 180
-	user2Lng = user2Lng * Pi / 180
-	user2Lat = user2Lat * Pi / 180
-	hsinX := math.Sin((user1Lng - user2Lng) / 2)
-	hsinY := math.Sin((user1Lat - user2Lat) / 2)
-	h := hsinY*hsinY + math.Cos(user1Lat)*math.Cos(user2Lat)*hsinX*hsinX
-	distance := 2 * math.Atan2(math.Sqrt(h), math.Sqrt(1-h)) * 6367000 / 1000
-	signature := html.EscapeString(user.Signature)
-	userWithD = &UserWithDistance{
-		Username:  user.Username,
-		StudentId: user.StudentId,
-		Position:  user.Position,
-		Distance:  distance,
-		Signature: signature,
-	}
+	//user2Position := user.Position
+	//var str string
+	//arr := strings.Split(position, ";")
+	//str = arr[0]
+	//user1Lng, _ := strconv.ParseFloat(str, 32)
+	//str = arr[1]
+	//user1Lat, _ := strconv.ParseFloat(str, 32)
+	//arr = strings.Split(user2Position, ";")
+	//str = arr[0]
+	//user2Lng, _ := strconv.ParseFloat(str, 32)
+	//str = arr[1]
+	//user2Lat, _ := strconv.ParseFloat(str, 32)
+	//user1Lng = user1Lng * Pi / 180
+	//user1Lat = user1Lat * Pi / 180
+	//user2Lng = user2Lng * Pi / 180
+	//user2Lat = user2Lat * Pi / 180
+	//hsinX := math.Sin((user1Lng - user2Lng) / 2)
+	//hsinY := math.Sin((user1Lat - user2Lat) / 2)
+	//h := hsinY*hsinY + math.Cos(user1Lat)*math.Cos(user2Lat)*hsinX*hsinX
+	//distance := 2 * math.Atan2(math.Sqrt(h), math.Sqrt(1-h)) * 6367000 / 1000
+	//signature := html.EscapeString(user.Signature)
+	//userWithD = &UserWithDistance{
+	//	Username:  user.Username,
+	//	StudentId: user.StudentId,
+	//	Position:  user.Position,
+	//	Distance:  distance,
+	//	Signature: signature,
+	//}
+	//return
 	return
 }
 
