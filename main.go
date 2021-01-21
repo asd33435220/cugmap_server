@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"ginWeb/jwt"
 	db "ginWeb/utils"
 	"github.com/gin-gonic/gin"
@@ -222,7 +221,6 @@ func main() {
 			return
 		}
 		userList, err := db.GetAllUserInfo(newUser.Longitude,newUser.Latitude,newUser.StudentId)
-		fmt.Println("userList",userList)
 		if err != nil {
 			context.JSON(200, gin.H{
 				"code":    -1,

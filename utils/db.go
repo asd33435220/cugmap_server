@@ -19,8 +19,8 @@ const (
 	updateUserPosition  = "update cug_map_users_tpl set lng = ?,lat = ? where student_id = ?;"
 	updateUserSignature = "update cug_map_users_tpl set signature = ? where student_id = ?;"
 	queryUserPosition   = "select lng,lat from cug_map_users_tpl where student_id = ?;"
-	countUserNumber     = "select count(student_id) from cug_map_users_tpl where lng > ? and lng < ? and lat > ? and lat < ?"
-	queryAllUserInfo    = "select student_id,username,lng,lat,signature from cug_map_users_tpl where lng > ? and lng < ? and lat > ? and lat < ?;"
+	countUserNumber     = "select count(student_id) from cug_map_users_tpl where lng between ? and ? and lat between ? and ?;"
+	queryAllUserInfo    = "select student_id,username,lng,lat,signature from cug_map_users_tpl where lng between ? and ? and lat between ? and ?;"
 	queryAllInfo        = "select student_id,username,lng,lat,signature from cug_map_users_tpl where student_id = ?;"
 )
 
@@ -67,7 +67,6 @@ func (newUser *User) QueryUserInfo() *User {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	fmt.Println(user)
 	return user
 }
 func (newUser *User) AddUser() (err error) {
@@ -82,18 +81,16 @@ func (newUser *User) AddUser() (err error) {
 		log.Fatal(err)
 		return
 	}
-	id, err := result.LastInsertId()
+	_, err = result.LastInsertId()
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	fmt.Println("id=", id)
-	rows, err := result.RowsAffected()
+	_, err = result.RowsAffected()
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	fmt.Println("rows=", rows)
 	return nil
 }
 func (newUser *User) GetUser() (username string, err error) {
@@ -135,20 +132,18 @@ func (newUser *User) UpdateUserInfo() (err error) {
 		log.Fatal(err)
 		return
 	}
-	id, err := result.LastInsertId()
+	_, err = result.LastInsertId()
 	if err != nil {
 		tx.Rollback()
 		log.Fatal(err)
 		return
 	}
-	fmt.Println("id=", id)
-	rows, err := result.RowsAffected()
+	_, err = result.RowsAffected()
 	if err != nil {
 		tx.Rollback()
 		log.Fatal(err)
 		return
 	}
-	fmt.Println("rows=", rows)
 	stmt, err = tx.Prepare(updateUserSignature)
 	if err != nil {
 		tx.Rollback()
@@ -162,20 +157,18 @@ func (newUser *User) UpdateUserInfo() (err error) {
 		log.Fatal(err)
 		return
 	}
-	id, err = result.LastInsertId()
+	_, err = result.LastInsertId()
 	if err != nil {
 		tx.Rollback()
 		log.Fatal(err)
 		return
 	}
-	fmt.Println("id=", id)
-	rows, err = result.RowsAffected()
+	_, err = result.RowsAffected()
 	if err != nil {
 		tx.Rollback()
 		log.Fatal(err)
 		return
 	}
-	fmt.Println("rows=", rows)
 	tx.Commit()
 	return
 }
@@ -229,7 +222,6 @@ func GetAllUserInfo(lng, lat float64, myId string) (userList []*User, err error)
 	}
 	row := stmt.QueryRow(-180, 180, -90, 90)
 	row.Scan(&number)
-	fmt.Println("number=", number)
 	for number > 50 {
 		row = stmt.QueryRow(lng-Lrange, lng+Lrange, lat-Lrange, lat+Lrange)
 		row.Scan(&number)
