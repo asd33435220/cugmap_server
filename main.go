@@ -1,8 +1,8 @@
 package main
 
 import (
-	"ginWeb/jwt"
-	db "ginWeb/utils"
+	"./jwt"
+	db "./utils"
 	"github.com/gin-gonic/gin"
 	"html"
 	"net/http"
