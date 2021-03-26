@@ -356,7 +356,7 @@ func main() {
 			})
 			return
 		}
-		if strings.TrimSpace(message) == "" {
+		if strings.TrimSpace(message) == "" || len(message)>50 {
 			context.JSON(200, gin.H{
 				"code":    -1,
 				"message": "消息不能为空喔",
@@ -370,11 +370,14 @@ func main() {
 			})
 			return
 		}
-		messageTime := time.Now().Format("2006-01-02 15:04:05")
+		messageTime :=  strconv.Itoa(int(time.Now().UnixNano()/1e6))
+		messageTimeStr := time.Now().Format("2006-01-02 15:04:05")
+
 		newMessage := &db.MessageType{
 			SenderId:   senderId,
 			ReceiverId: receiverId,
-			SendTime:   messageTime,
+			SendTimeStr:   messageTimeStr,
+			SendTime: messageTime,
 			Message:    message,
 		}
 		err := newMessage.AddMessage()
@@ -410,7 +413,7 @@ func main() {
 		MyMessageType := &db.MessageType{
 			ReceiverId: id,
 		}
-		MessageList, err := MyMessageType.GetMyMessage()
+		ReceiverMessageList,SenderMessageList, err := MyMessageType.GetMyMessage()
 		if err != nil {
 			context.JSON(200, gin.H{
 				"code":    -1,
@@ -421,7 +424,34 @@ func main() {
 		context.JSON(200, gin.H{
 			"code":         1,
 			"message":      "查询成功",
-			"message_list": MessageList,
+			"receiver_message_list": ReceiverMessageList,
+			"sender_message_list": SenderMessageList,
+		})
+	})
+	messageRoute.GET("/read", func(context *gin.Context) {
+		ReceiverId := context.Query("ReceiverId")
+		SenderId := context.Query("SenderId")
+		if ReceiverId == "" || SenderId == "" {
+			context.JSON(200,gin.H{
+				"code" : -1,
+				"message": "信息错误",
+			})
+		}
+		MyMessageType := &db.MessageType{
+			ReceiverId:ReceiverId,
+			SenderId: SenderId,
+		}
+		 err := MyMessageType.UpdateMessage()
+		if err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "查询信息有误，请稍后再试",
+			})
+			return
+		}
+		context.JSON(200, gin.H{
+			"code":         1,
+			"message":      "更新已读状态成功",
 		})
 	})
 	r.Run(":9999")
