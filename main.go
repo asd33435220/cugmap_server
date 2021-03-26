@@ -428,6 +428,41 @@ func main() {
 			"sender_message_list": SenderMessageList,
 		})
 	})
+	messageRoute.GET("/allmymessage", jwt.JWTAuthMiddleware(), func(context *gin.Context) {
+		StudentId, ok := context.Get("StudentId")
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "用户状态有误，请重新登陆",
+			})
+			return
+		}
+		id, ok := StudentId.(string)
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "用户状态有误，请重新登陆",
+			})
+			return
+		}
+		MyMessageType := &db.MessageType{
+			ReceiverId: id,
+		}
+		messageList, err := MyMessageType.GetAllMyMessage()
+		if err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "查询信息有误，请稍后再试",
+			})
+			return
+		}
+		context.JSON(200, gin.H{
+			"code":         1,
+			"message":      "查询成功",
+			"message_list": messageList,
+		})
+	})
+
 	messageRoute.GET("/read", func(context *gin.Context) {
 		ReceiverId := context.Query("ReceiverId")
 		SenderId := context.Query("SenderId")
