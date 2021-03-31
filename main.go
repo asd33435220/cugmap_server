@@ -3,6 +3,7 @@ package main
 import (
 	"./jwt"
 	db "./utils"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"html"
 	"net/http"
@@ -41,6 +42,8 @@ func main() {
 	})
 	userRoute := r.Group("/user")
 	messageRoute := r.Group("/message")
+	placeRoute := r.Group("/place")
+	commentRoute := r.Group("/comment")
 	userRoute.GET("/query", func(context *gin.Context) {
 
 	})
@@ -220,7 +223,7 @@ func main() {
 			})
 			return
 		}
-		userList, err := db.GetAllUserInfo(newUser.Longitude,newUser.Latitude,newUser.StudentId)
+		userList, err := db.GetAllUserInfo(newUser.Longitude, newUser.Latitude, newUser.StudentId)
 		if err != nil {
 			context.JSON(200, gin.H{
 				"code":    -1,
@@ -356,7 +359,7 @@ func main() {
 			})
 			return
 		}
-		if strings.TrimSpace(message) == "" || len(message)>50 {
+		if strings.TrimSpace(message) == "" || len(message) > 50 {
 			context.JSON(200, gin.H{
 				"code":    -1,
 				"message": "消息不能为空喔",
@@ -370,17 +373,34 @@ func main() {
 			})
 			return
 		}
-		messageTime :=  strconv.Itoa(int(time.Now().UnixNano()/1e6))
+		messageTime := strconv.Itoa(int(time.Now().UnixNano() / 1e6))
 		messageTimeStr := time.Now().Format("2006-01-02 15:04:05")
+		placeCodeStr, ok := context.GetPostForm("place_code")
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "服务器错误,请稍后再试",
+			})
+			return
+		}
+		placeCode, err := strconv.Atoi(placeCodeStr)
+		if err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "服务器错误,请稍后再试",
+			})
+			return
+		}
 
 		newMessage := &db.MessageType{
-			SenderId:   senderId,
-			ReceiverId: receiverId,
-			SendTimeStr:   messageTimeStr,
-			SendTime: messageTime,
-			Message:    message,
+			SenderId:    senderId,
+			ReceiverId:  receiverId,
+			SendTimeStr: messageTimeStr,
+			SendTime:    messageTime,
+			Message:     message,
+			PlaceCode:   int64(placeCode),
 		}
-		err := newMessage.AddMessage()
+		err = newMessage.AddMessage()
 		if err != nil {
 			context.JSON(200, gin.H{
 				"code":    -1,
@@ -413,7 +433,7 @@ func main() {
 		MyMessageType := &db.MessageType{
 			ReceiverId: id,
 		}
-		ReceiverMessageList,SenderMessageList, err := MyMessageType.GetMyMessage()
+		ReceiverMessageList, SenderMessageList, err := MyMessageType.GetMyMessage()
 		if err != nil {
 			context.JSON(200, gin.H{
 				"code":    -1,
@@ -422,10 +442,10 @@ func main() {
 			return
 		}
 		context.JSON(200, gin.H{
-			"code":         1,
-			"message":      "查询成功",
+			"code":                  1,
+			"message":               "查询成功",
 			"receiver_message_list": ReceiverMessageList,
-			"sender_message_list": SenderMessageList,
+			"sender_message_list":   SenderMessageList,
 		})
 	})
 	messageRoute.GET("/allmymessage", jwt.JWTAuthMiddleware(), func(context *gin.Context) {
@@ -467,16 +487,16 @@ func main() {
 		ReceiverId := context.Query("ReceiverId")
 		SenderId := context.Query("SenderId")
 		if ReceiverId == "" || SenderId == "" {
-			context.JSON(200,gin.H{
-				"code" : -1,
+			context.JSON(200, gin.H{
+				"code":    -1,
 				"message": "信息错误",
 			})
 		}
 		MyMessageType := &db.MessageType{
-			ReceiverId:ReceiverId,
-			SenderId: SenderId,
+			ReceiverId: ReceiverId,
+			SenderId:   SenderId,
 		}
-		 err := MyMessageType.UpdateMessage()
+		err := MyMessageType.UpdateMessage()
 		if err != nil {
 			context.JSON(200, gin.H{
 				"code":    -1,
@@ -485,10 +505,306 @@ func main() {
 			return
 		}
 		context.JSON(200, gin.H{
-			"code":         1,
-			"message":      "更新已读状态成功",
+			"code":    1,
+			"message": "更新已读状态成功",
 		})
 	})
+	placeRoute.POST("/add", jwt.JWTAuthMiddleware(), func(context *gin.Context) {
+		StudentId, ok := context.Get("StudentId")
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "用户状态有误，请重新登陆",
+			})
+			return
+		}
+		Founder, ok := StudentId.(string)
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "地点名字有误，请修改后重试",
+			})
+			return
+		}
+		Name, ok := context.GetPostForm("Name")
+		if len(Name) > 50 || strings.TrimSpace(Name) == "" || !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "地物名字有误，请修改后重试",
+			})
+			return
+		}
+		Address, ok := context.GetPostForm("Address")
+		fmt.Println(len(Address))
+		if len(Address) > 200 || strings.TrimSpace(Address) == "" || !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "详细地址有误，请修改后重试",
+			})
+			return
+		}
+		Lng, ok := context.GetPostForm("Lng")
+		Longitude, err := strconv.ParseFloat(Lng, 64)
+		if !ok || err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "地物经度有误，请修改后重试",
+			})
+			return
+		}
+		Lat, ok := context.GetPostForm("Lat")
+		Latitude, err := strconv.ParseFloat(Lat, 64)
+		if !ok || err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "地物纬度有误，请修改后重试",
+			})
+			return
+		}
+		Number, ok := context.GetPostForm("Number")
+		if len(Number) > 15 || strings.TrimSpace(Number) == "" || !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "联系方式有误，请修改后重试",
+			})
+			return
+		}
+		Image1Url, ok := context.GetPostForm("Image1Url")
+		if len(Image1Url) > 3000 || !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "图片1过长，请修改后重试",
+			})
+			return
+		}
+		Image2Url, ok := context.GetPostForm("Image2Url")
+		if len(Image2Url) > 3000 || !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "图片2过长，请修改后重试",
+			})
+			return
+		}
+		Comment, ok := context.GetPostForm("Comment")
+		if len(Comment) > 200 || strings.TrimSpace(Comment) == "" || !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "评论长度有误，请修改后重试",
+			})
+			return
+		}
+		TypeStr, ok := context.GetPostForm("Type")
+		Type, err := strconv.Atoi(TypeStr)
+		if !ok || err != nil || Type > 3 || Type < 0 {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "地物类型有误，请修改后重试",
+			})
+			return
+		}
+		ScoreStr, ok := context.GetPostForm("Score")
+		Score, err := strconv.ParseFloat(ScoreStr, 64)
+		if !ok || err != nil || Score > 5 || Score < 0 {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "地物评分有误，请修改后重试",
+			})
+			return
+		}
+
+		newPlace := &db.Place{
+			Name:           Name,
+			Address:        Address,
+			Longitude:      Longitude,
+			Latitude:       Latitude,
+			Image1Url:      Image1Url,
+			Image2Url:      Image2Url,
+			Type:           Type,
+			Score:          Score,
+			Number:         Number,
+			Founder:        Founder,
+			FounderComment: Comment,
+		}
+		err = newPlace.AddPlace()
+		if err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "服务器错误，请重试",
+			})
+			return
+		}
+
+		context.JSON(200, gin.H{
+			"code":    1,
+			"message": "地物更新成功！",
+		})
+		return
+
+	})
+	placeRoute.GET("/info", jwt.JWTAuthMiddleware(), func(context *gin.Context) {
+		StudentId, ok := context.Get("StudentId")
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "用户状态有误，请重新登陆",
+			})
+			return
+		}
+		id, ok := StudentId.(string)
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "用户状态有误，请重新登陆",
+			})
+			return
+		}
+		newUser := &db.User{
+			StudentId: id,
+		}
+		newUser.QueryAllInfo()
+		placeInfoList, err := db.GetPlace(newUser)
+		if err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "服务器错误，请重试",
+			})
+			return
+		}
+
+		context.JSON(200, gin.H{
+			"code":       1,
+			"message":    "地物查询成功！",
+			"place_info": placeInfoList,
+		})
+		return
+
+	})
+	placeRoute.GET("/chat", jwt.JWTAuthMiddleware(), func(context *gin.Context) {
+		StudentId, ok := context.Get("StudentId")
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "用户状态有误，请重新登陆",
+			})
+			return
+		}
+		_, ok = StudentId.(string)
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "用户状态有误，请重新登陆",
+			})
+			return
+		}
+		placeCode := context.Query("placeCode")
+		placeInfo, err := db.GetOnePlce(placeCode)
+		if err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "服务器错误，请重试",
+			})
+			return
+		}
+		context.JSON(200, gin.H{
+			"code":       1,
+			"message":    "地物查询成功！",
+			"place_info": placeInfo,
+		})
+		return
+	})
+
+	commentRoute.GET("/all", func(context *gin.Context) {
+		PlaceCodeStr := context.Query("placeCode")
+		_, err := strconv.Atoi(PlaceCodeStr)
+		if err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "地物代号有误!",
+			})
+		}
+
+		CommentList, err := db.GetComment(PlaceCodeStr)
+		if err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "服务器错误，请稍后重试",
+			})
+		}
+		context.JSON(200, gin.H{
+			"code":         1,
+			"message":      "地物评论查询成功",
+			"comment_list": CommentList,
+		})
+
+	})
+	commentRoute.POST("/add", jwt.JWTAuthMiddleware(), func(context *gin.Context) {
+		StudentId, ok := context.Get("StudentId")
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "用户状态有误，请重新登陆",
+			})
+			return
+		}
+		Commentator, ok := StudentId.(string)
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "用户状态有误，请重新登陆",
+			})
+			return
+		}
+		PlaceCode, ok := context.GetPostForm("placeCode")
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "地物代号有误",
+			})
+			return
+		}
+		CommentMessage, ok := context.GetPostForm("commentMessage")
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "评论信息有误",
+			})
+			return
+		}
+		ScoreStr, ok := context.GetPostForm("score")
+		Score, err := strconv.Atoi(ScoreStr)
+		if !ok || err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "评分有误",
+			})
+			return
+		}
+		CommentTime := strconv.Itoa(int(time.Now().UnixNano() / 1e6))
+		CommentTimeStr := time.Now().Format("2006-01-02 15:04:05")
+		newComment := &db.Comment{
+			PlaceCode:      PlaceCode,
+			CommentTime:    CommentTime,
+			CommentTimeStr: CommentTimeStr,
+			Score:          Score,
+			Commentator:    Commentator,
+			CommentMessage: CommentMessage,
+		}
+		err = newComment.AddComment()
+		if err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "服务器错误，请稍后重试",
+			})
+			return
+		}
+		context.JSON(200, gin.H{
+			"code":    -1,
+			"message": "评论添加成功！",
+		})
+	})
+	//commentRoute.GET("/like", func(context *gin.Context) {
+	//
+	//})
 	r.Run(":9999")
 }
 
