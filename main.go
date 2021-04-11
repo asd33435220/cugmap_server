@@ -434,6 +434,7 @@ func main() {
 			ReceiverId: id,
 		}
 		ReceiverMessageList, SenderMessageList, err := MyMessageType.GetMyMessage()
+		AllMyMessageList := append(ReceiverMessageList, SenderMessageList...)
 		if err != nil {
 			context.JSON(200, gin.H{
 				"code":    -1,
@@ -442,10 +443,9 @@ func main() {
 			return
 		}
 		context.JSON(200, gin.H{
-			"code":                  1,
-			"message":               "查询成功",
-			"receiver_message_list": ReceiverMessageList,
-			"sender_message_list":   SenderMessageList,
+			"code":         1,
+			"message":      "查询成功",
+			"message_list": AllMyMessageList,
 		})
 	})
 	messageRoute.GET("/allmymessage", jwt.JWTAuthMiddleware(), func(context *gin.Context) {
