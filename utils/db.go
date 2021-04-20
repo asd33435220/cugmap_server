@@ -5,6 +5,7 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
+	"time"
 )
 
 var Db *sql.DB
@@ -206,30 +207,36 @@ func (newUser *User) QueryAllInfo() (err error) {
 }
 func GetAllUserInfo(lng, lat float64, myId string) (userList []*User, err error) {
 	number := 0
-	Lrange := 10.0
+	Lrange := 2.0
 	userList = make([]*User, 0)
 	stmt2, err2 := Db.Prepare(queryAllUserInfo)
-	defer stmt2.Close()
 	if err2 != nil {
 		fmt.Println("err2", err2.Error())
 		return
 	}
+	defer stmt2.Close()
 	stmt, err := Db.Prepare(countUserNumber)
-	defer stmt.Close()
 	if err != nil {
 		fmt.Println("err1", err.Error())
 		return
 	}
-	row := stmt.QueryRow(-180, 180, -90, 90)
+	defer stmt.Close()
+	row := stmt.QueryRow(lng-Lrange, lng+Lrange, lat-Lrange, lat+Lrange)
 	row.Scan(&number)
-	for number > 50 {
+	Lrange = Lrange / 3
+	i := 1
+	for number > 100 {
+		start := time.Now() // 获取当前时间
 		row = stmt.QueryRow(lng-Lrange, lng+Lrange, lat-Lrange, lat+Lrange)
+		elapsed := time.Since(start)
 		row.Scan(&number)
-		Lrange = Lrange / 1.2
-
+		fmt.Printf("第%d次查询,耗时%s,共%d位用户符合要求\n", i, elapsed, number)
+		i++
+		Lrange = Lrange / 3
 	}
-	Lrange = Lrange * 1.2
+	Lrange = Lrange * 4
 	var rows *sql.Rows
+	start := time.Now() // 获取当前时间
 	if Lrange > 9 {
 		rows, err = stmt2.Query(-180, 180, -90, 90)
 	} else {
@@ -249,10 +256,10 @@ func GetAllUserInfo(lng, lat float64, myId string) (userList []*User, err error)
 		user := User{}
 		rows.Scan(&user.StudentId, &user.Username, &user.Longitude, &user.Latitude, &user.Signature)
 		if user.Longitude != 0 && user.Latitude != 0 && user.StudentId != myId {
-			//userWithD := Getdistance(position, &user)
-			//userList = append(userList, userWithD)
 			userList = append(userList, &user)
 		}
 	}
+	elapsed := time.Since(start)
+	fmt.Println("提取符合要求的用户数据耗时：", elapsed)
 	return
 }

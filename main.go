@@ -240,6 +240,52 @@ func main() {
 		})
 		return
 	})
+	userRoute.GET("/position2", jwt.JWTAuthMiddleware(), func(context *gin.Context) {
+		StudentId, ok := context.Get("StudentId")
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "用户状态有误，请重新登陆",
+			})
+			return
+		}
+		id, ok := StudentId.(string)
+		if !ok {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "用户状态有误，请重新登陆",
+			})
+			return
+		}
+		newUser := &db.User{
+			StudentId: id,
+		}
+		newUser.QueryUserPosition()
+		if newUser.Longitude == 0 && newUser.Latitude == 0 {
+			context.JSON(200, gin.H{
+				"code":    -2,
+				"message": "你还没有登记自己的位置信息哦,先去更新一下吧",
+			})
+			return
+		}
+		userList, err := db.GetAllUserInfo2(newUser.Longitude, newUser.Latitude, newUser.StudentId)
+		if err != nil {
+			context.JSON(200, gin.H{
+				"code":    -1,
+				"message": "查询位置信息失败",
+			})
+			return
+		}
+		context.JSON(200, gin.H{
+			"code":      1,
+			"message":   "success",
+			"user_list": userList,
+			"user_lng":  newUser.Longitude,
+			"user_lat":  newUser.Latitude,
+		})
+		return
+	})
+
 	userRoute.GET("/update/info", jwt.JWTAuthMiddleware(), func(context *gin.Context) {
 		StudentId, ok := context.Get("StudentId")
 		if !ok {

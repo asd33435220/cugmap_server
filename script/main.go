@@ -15,20 +15,13 @@ func run() (err error) {
 		fmt.Println(err.Error())
 	}
 	const insertUserStr = "insert into cug_map_users_tpl(student_id,username,password,lng,lat,signature) values(?,?,?,?,?,?);"
-
-	//stmt, err := Db.Exec(insertUserStr)
-	//if err != nil {
-	//	log.Fatal(err)
-	//	return
-	//}
-	//defer stmt.Close()
 	stmt, err := Db.Prepare(insertUserStr)
 	if err != nil {
 		log.Fatal(err)
 		return err
 	}
-	for i := 1; i < 100000; i++ {
-		studentId := 30000000000 + i
+	for i := 1; i < 4000000; i++ {
+		studentId := 40001000000 + i
 		student_id := strconv.Itoa(studentId)
 		name := "测试账号" + strconv.Itoa(i)
 		password := "asd33435220"
@@ -41,22 +34,6 @@ func run() (err error) {
 			return err
 		}
 	}
-	//if err != nil {
-	//	log.Fatal(err)
-	//	return
-	//}
-	//id, err := result.LastInsertId()
-	//if err != nil {
-	//	log.Fatal(err)
-	//	return
-	//}
-	//fmt.Println("id=", id)
-	//rows, err := result.RowsAffected()
-	//if err != nil {
-	//	log.Fatal(err)
-	//	return
-	//}
-	//fmt.Println("rows=", rows)
 	return nil
 }
 

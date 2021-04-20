@@ -1,67 +1,41 @@
 package db
 
 import (
-	//"html"
-	//"math"
-	"math/rand"
-	//"strconv"
-	//"strings"
+	"fmt"
+	"math"
+	"sort"
 	"time"
 )
 
 const (
-	Pi = 3.1415926535
+	Pi                = 3.1415926535
+	queryAllUserInfo2 = "select student_id,username,lng,lat,signature from cug_map_users_tpl where student_id != ?;"
 )
 
 type UserWithDistance struct {
 	StudentId string  `json:"student_id"`
 	Username  string  `json:"username"`
 	Distance  float64 `json:"distance"`
-	Position  string  `json:"position"`
+	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"latitude"`
 	Signature string  `json:"signature"`
 }
 
-func Getdistance(position string, user *User) (userWithD *UserWithDistance) {
-	//user2Position := user.Position
-	//var str string
-	//arr := strings.Split(position, ";")
-	//str = arr[0]
-	//user1Lng, _ := strconv.ParseFloat(str, 32)
-	//str = arr[1]
-	//user1Lat, _ := strconv.ParseFloat(str, 32)
-	//arr = strings.Split(user2Position, ";")
-	//str = arr[0]
-	//user2Lng, _ := strconv.ParseFloat(str, 32)
-	//str = arr[1]
-	//user2Lat, _ := strconv.ParseFloat(str, 32)
-	//user1Lng = user1Lng * Pi / 180
-	//user1Lat = user1Lat * Pi / 180
-	//user2Lng = user2Lng * Pi / 180
-	//user2Lat = user2Lat * Pi / 180
-	//hsinX := math.Sin((user1Lng - user2Lng) / 2)
-	//hsinY := math.Sin((user1Lat - user2Lat) / 2)
-	//h := hsinY*hsinY + math.Cos(user1Lat)*math.Cos(user2Lat)*hsinX*hsinX
-	//distance := 2 * math.Atan2(math.Sqrt(h), math.Sqrt(1-h)) * 6367000 / 1000
-	//signature := html.EscapeString(user.Signature)
-	//userWithD = &UserWithDistance{
-	//	Username:  user.Username,
-	//	StudentId: user.StudentId,
-	//	Position:  user.Position,
-	//	Distance:  distance,
-	//	Signature: signature,
-	//}
-	//return
+func Getdistance(lng1, lat1, lng2, lat2 float64) (distance float64) {
+	user1Lng := lng1 * Pi / 180
+	user1Lat := lat1 * Pi / 180
+	user2Lng := lng2 * Pi / 180
+	user2Lat := lat2 * Pi / 180
+	hsinX := math.Sin((user1Lng - user2Lng) / 2)
+	hsinY := math.Sin((user1Lat - user2Lat) / 2)
+	h := hsinY*hsinY + math.Cos(user1Lat)*math.Cos(user2Lat)*hsinX*hsinX
+	distance = 2 * math.Atan2(math.Sqrt(h), math.Sqrt(1-h)) * 6367000 / 1000
 	return
 }
 
 func getTargetList(userList []*UserWithDistance) (targetUserList []*UserWithDistance) {
-	//targetUserList = make([]*UserWithDistance,0)
-	//fmt.Println("userList", userList)
-	arr := getRandList()
-	seed := rand.NewSource(time.Now().Unix()) //同前面一样的种子
-	randNum := rand.New(seed)
-	for i := 0; i < 3+randNum.Intn(4); i++ {
-		targetUserList = append(targetUserList, findLaskK(userList, arr[i]))
+	for i := 0; i < 30; i++ {
+		targetUserList = append(targetUserList, findLaskK(userList, 1))
 	}
 	return
 }
@@ -74,6 +48,7 @@ func findLaskK(userList []*UserWithDistance, k int) *UserWithDistance {
 		}
 		pivot := findPivot(userList, left, right)
 		if pivot+1 == k {
+			userList = append(userList[:pivot], userList[pivot+1:]...)
 			return userList[pivot]
 		} else if pivot+1 < k {
 			return walk(userList, pivot+1, right, k)
@@ -83,7 +58,6 @@ func findLaskK(userList []*UserWithDistance, k int) *UserWithDistance {
 
 	}
 	return walk(userList, 0, len(userList)-1, k)
-
 }
 func findPivot(userList []*UserWithDistance, left int, right int) int {
 	pivot := userList[left].Distance
@@ -107,14 +81,43 @@ func swap(userList []*UserWithDistance, left int, right int) {
 	userList[left] = userList[right]
 	userList[right] = temp
 }
-func getRandList() (arr []int) {
-	arr = []int{2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
-	seed := rand.NewSource(time.Now().Unix()) //同前面一样的种子
-	randNum := rand.New(seed)
-	for i := len(arr) - 1; i > 5; i-- {
-		number := randNum.Intn(i)
-		arr = append(arr[:number], arr[number+1:]...)
+func GetAllUserInfo2(lng, lat float64, myId string) (userList []*UserWithDistance, err error) {
+	userList = make([]*UserWithDistance, 0)
+	start1 := time.Now() // 获取当前时间
+	stmt2, err2 := Db.Prepare(queryAllUserInfo2)
+	if err2 != nil {
+		fmt.Println("err2", err2.Error())
+		return
 	}
+	defer stmt2.Close()
+	rows, err := stmt2.Query(myId)
+	if err != nil {
+		fmt.Errorf(err.Error())
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		user := UserWithDistance{}
+		rows.Scan(&user.StudentId, &user.Username, &user.Longitude, &user.Latitude, &user.Signature)
+		if user.Longitude != 0 && user.Latitude != 0 && user.StudentId != myId {
 
+			userList = append(userList, &user)
+		}
+	}
+	elapsed1 := time.Since(start1)
+	fmt.Println("数据库执行完成耗时：", elapsed1)
+	start2 := time.Now() // 获取当前时间
+	for _, user := range userList {
+		user.Distance = Getdistance(user.Longitude, user.Latitude, lng, lat)
+	}
+	elapsed2 := time.Since(start2)
+	fmt.Println("坐标计算函数执行完成耗时：", elapsed2)
+	start3 := time.Now() // 获取当前时间
+	sort.Slice(userList, func(i, j int) bool {
+		return userList[i].Distance < userList[j].Distance
+	})
+	userList = userList[:50]
+	elapsed3 := time.Since(start3)
+	fmt.Println("排序函数执行完成耗时：", elapsed3)
 	return
 }
