@@ -20,7 +20,7 @@ func run() (err error) {
 		log.Fatal(err)
 		return err
 	}
-	for i := 1; i < 4000000; i++ {
+	for i := 1; i < 5000000; i++ {
 		studentId := 40001000000 + i
 		student_id := strconv.Itoa(studentId)
 		name := "测试账号" + strconv.Itoa(i)

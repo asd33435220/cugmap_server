@@ -1,8 +1,12 @@
 package db
 
 import (
+	Rdb "../redis"
+	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"time"
 )
 
 type Place struct {
@@ -23,7 +27,7 @@ type Place struct {
 
 const (
 	AddPlaceStr         = "insert into cug_map_place_tpl(name,founder,founder_comment,score,type,phone_number,address,lng,lat,image1_url,image2_url) values(?,?,?,?,?,?,?,?,?,?,?)"
-	QueryOnePlaceStr 	= "select place_code,name,founder,founder_comment,score,type,phone_number,address,lng,lat,image1_url,image2_url,comment_number from cug_map_place_tpl where place_code = ?"
+	QueryOnePlaceStr    = "select place_code,name,founder,founder_comment,score,type,phone_number,address,lng,lat,image1_url,image2_url,comment_number from cug_map_place_tpl where place_code = ?"
 	QueryAllPlaceStr    = "select place_code,name,founder,founder_comment,score,type,phone_number,address,lng,lat,image1_url,image2_url,comment_number from cug_map_place_tpl where lng between ? and ? and lat between ? and ?"
 	CountPlaceNumberStr = "select COUNT(place_code) from cug_map_place_tpl where lng between ? and ? and lat between ? and ?"
 )
@@ -83,13 +87,13 @@ func GetPlace(user *User) (placeInfoList []*Place, err error) {
 			break
 		}
 		place := Place{}
-		rows.Scan(&place.PlaceCode, &place.Name, &place.Founder, &place.FounderComment, &place.Score, &place.Type, &place.Number, &place.Address, &place.Longitude, &place.Latitude, &place.Image1Url, &place.Image2Url,&place.CommentNumber)
+		rows.Scan(&place.PlaceCode, &place.Name, &place.Founder, &place.FounderComment, &place.Score, &place.Type, &place.Number, &place.Address, &place.Longitude, &place.Latitude, &place.Image1Url, &place.Image2Url, &place.CommentNumber)
 		place.Founder = user.Username
 		placeInfoList = append(placeInfoList, &place)
 	}
 	return
 }
-func GetOnePlce(placeCode string)(place *Place,err error){
+func GetOnePlce(placeCode string) (place *Place, err error) {
 	place = &Place{
 		Name:           "",
 		Address:        "",
@@ -105,16 +109,33 @@ func GetOnePlce(placeCode string)(place *Place,err error){
 		Founder:        "",
 		FounderComment: "",
 	}
-	stmt,err := Db.Prepare(QueryOnePlaceStr)
+	rdb := Rdb.Rdb
+	val, err := rdb.Get(context.TODO(), "P"+placeCode).Result()
+	if err == nil {
+		err = json.Unmarshal([]byte(val), place)
+		if err != nil {
+
+		} else {
+			return place, nil
+		}
+	}
+	stmt, err := Db.Prepare(QueryOnePlaceStr)
 	if err != nil {
 		return
 	}
 	defer stmt.Close()
 	row := stmt.QueryRow(placeCode)
-	err = row.Scan(&place.PlaceCode, &place.Name, &place.Founder, &place.FounderComment, &place.Score, &place.Type, &place.Number, &place.Address, &place.Longitude, &place.Latitude, &place.Image1Url, &place.Image2Url,&place.CommentNumber)
+	err = row.Scan(&place.PlaceCode, &place.Name, &place.Founder, &place.FounderComment, &place.Score, &place.Type, &place.Number, &place.Address, &place.Longitude, &place.Latitude, &place.Image1Url, &place.Image2Url, &place.CommentNumber)
 	if err != nil {
-		fmt.Println("hello",err.Error())
+		fmt.Println("hello", err.Error())
 		return
 	}
+	placeByte, err := json.Marshal(place)
+	placeStr := string(placeByte)
+	if err != nil {
+		fmt.Println("marshal error", err.Error())
+		return
+	}
+	rdb.Set(context.TODO(), "P"+placeCode, placeStr, time.Second*600)
 	return
 }

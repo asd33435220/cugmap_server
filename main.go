@@ -75,6 +75,7 @@ func main() {
 
 	})
 	userRoute.POST("/login", func(context *gin.Context) {
+
 		newUser := &db.User{}
 		errJson := &ErrorJson{
 			"nothing",

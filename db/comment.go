@@ -39,11 +39,12 @@ func(this *Comment)AddComment()(err error){
 		return
 	}
 	newScore := (score * (number+1) + float64(this.Score))/(number+2)
-
-	_,err = tx.Exec(updatePlaceScore,int(number+1),newScore,this.PlaceCode)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+	if newScore !=score {
+		_,err = tx.Exec(updatePlaceScore,int(number+1),newScore,this.PlaceCode)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
 	}
 	err = tx.Commit()
 	if err != nil {

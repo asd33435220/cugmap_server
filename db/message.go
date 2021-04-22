@@ -48,18 +48,16 @@ func (this *MessageType) UpdateMessage() (err error) {
 		fmt.Println(err.Error())
 		return
 	}
-	rows, err := result.RowsAffected()
+	_, err = result.RowsAffected()
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
-	fmt.Println("rows", rows)
-	id, err := result.LastInsertId()
+	_, err = result.LastInsertId()
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
-	fmt.Println("id", id)
 	return nil
 }
 
