@@ -26,3 +26,7 @@ func initClient() (err error) {
 	}
 	return nil
 }
+
+func Save(){
+	
+}

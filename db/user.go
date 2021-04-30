@@ -199,7 +199,7 @@ func (newUser *User) QueryAllInfo() (err error) {
 }
 func GetAllUserInfo(lng, lat float64, myId string) (userList []*User, err error) {
 	number := 0
-	Lrange := 2.0
+	Lrange := 0.6
 	userList = make([]*User, 0)
 	stmt2, err2 := Db.Prepare(queryAllUserInfo)
 	if err2 != nil {

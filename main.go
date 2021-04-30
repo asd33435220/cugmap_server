@@ -44,9 +44,7 @@ func main() {
 	messageRoute := r.Group("/message")
 	placeRoute := r.Group("/place")
 	commentRoute := r.Group("/comment")
-	userRoute.GET("/query", func(context *gin.Context) {
 
-	})
 	userRoute.GET("/check", func(context *gin.Context) {
 		newUser := &db.User{}
 		studentId := context.Query("student_id")
@@ -286,7 +284,6 @@ func main() {
 		})
 		return
 	})
-
 	userRoute.GET("/update/info", jwt.JWTAuthMiddleware(), func(context *gin.Context) {
 		StudentId, ok := context.Get("StudentId")
 		if !ok {
@@ -380,6 +377,7 @@ func main() {
 		})
 		return
 	})
+
 	messageRoute.POST("/leave", func(context *gin.Context) {
 		receiverId, ok := context.GetPostForm("receiver_id")
 		if !ok {
@@ -745,7 +743,7 @@ func main() {
 			return
 		}
 		placeCode := context.Query("placeCode")
-		placeInfo, err := db.GetOnePlce(placeCode)
+		placeInfo, err := db.GetOnePlace(placeCode)
 		if err != nil {
 			context.JSON(200, gin.H{
 				"code":    -1,

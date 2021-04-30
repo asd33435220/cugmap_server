@@ -43,7 +43,6 @@ func (this *Place) AddPlace() (err error) {
 	}
 	return nil
 }
-
 func GetPlace(user *User) (placeInfoList []*Place, err error) {
 	number := 0
 	Lrange := 10.0
@@ -93,7 +92,7 @@ func GetPlace(user *User) (placeInfoList []*Place, err error) {
 	}
 	return
 }
-func GetOnePlce(placeCode string) (place *Place, err error) {
+func GetOnePlace(placeCode string) (place *Place, err error) {
 	place = &Place{
 		Name:           "",
 		Address:        "",

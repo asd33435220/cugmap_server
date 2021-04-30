@@ -32,14 +32,12 @@ func Getdistance(lng1, lat1, lng2, lat2 float64) (distance float64) {
 	distance = 2 * math.Atan2(math.Sqrt(h), math.Sqrt(1-h)) * 6367000 / 1000
 	return
 }
-
 func getTargetList(userList []*UserWithDistance) (targetUserList []*UserWithDistance) {
 	for i := 0; i < 30; i++ {
 		targetUserList = append(targetUserList, findLaskK(userList, 1))
 	}
 	return
 }
-
 func findLaskK(userList []*UserWithDistance, k int) *UserWithDistance {
 	var walk func(userList []*UserWithDistance, left int, right int, k int) *UserWithDistance
 	walk = func(userList []*UserWithDistance, left int, right int, k int) *UserWithDistance {

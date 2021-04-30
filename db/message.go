@@ -60,7 +60,6 @@ func (this *MessageType) UpdateMessage() (err error) {
 	}
 	return nil
 }
-
 func (this *MessageType) AddMessage() (err error) {
 	stmt, err := Db.Prepare(insertMessageStr)
 	if err != nil {
